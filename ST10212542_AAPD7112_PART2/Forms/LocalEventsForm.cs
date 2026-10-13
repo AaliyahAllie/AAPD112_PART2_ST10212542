@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ST10212542_AAPD7112_PART_2;
+using ST10212542_AAPD7112_PART_2.Forms;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -6,17 +8,39 @@ using System.Windows.Forms;
 
 namespace ST10212542_AAPD7112_PART_2.Forms
 {
+    /// <summary>
+    /// LocalEventsForm implements Part 2: Local Events and Announcements.
+    /// Features:
+    /// - Chronological event viewing powered by SortedDictionary<DateTime, List<Event>>
+    /// - Fast category filtering powered by Dictionary<string, List<Event>>
+    /// - Search query tracking via HashSet<string>
+    /// - User preference profiling via Dictionary<string, int>
+    /// - Dynamic Recommendation Engine displaying tailored upcoming announcements
+    /// - Event Detailed View (full popup notice on click/double-click)
+    /// - Municipal Admin portal for authentic event creation
+    /// </summary>
     public partial class LocalEventsForm : Form
     {
+        // Reference to MainMenuForm for returning back
         private MainMenuForm mainMenu;
+
+        // In-memory cache of currently displayed recommended events (for double-click lookups)
         private List<Event> currentRecommendations = new List<Event>();
 
+        /// <summary>
+        /// Constructor accepting the parent MainMenuForm instance.
+        /// </summary>
+        /// <param name="menu">Reference to MainMenuForm</param>
         public LocalEventsForm(MainMenuForm menu)
         {
             InitializeComponent();
             mainMenu = menu;
         }
 
+        /// <summary>
+        /// Form Load Event: Sets up grid columns, fills category options,
+        /// applies initial filters to populate all events, and sets admin button states.
+        /// </summary>
         private void LocalEventsForm_Load(object sender, EventArgs e)
         {
             SetupGridColumns();
@@ -25,7 +49,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             UpdateAdminControls();
         }
 
-        // Sets up DataGridView columns for clean event display
+        /// <summary>
+        /// Configures DataGridView columns with appropriate titles and widths.
+        /// </summary>
         private void SetupGridColumns()
         {
             dgvEvents.Columns.Clear();
@@ -35,6 +61,7 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             dgvEvents.Columns.Add("Location", "Location");
             dgvEvents.Columns.Add("Description", "Description");
 
+            // Allocate proportional column widths
             dgvEvents.Columns["Title"].Width = 160;
             dgvEvents.Columns["Category"].Width = 110;
             dgvEvents.Columns["Date"].Width = 85;
@@ -42,7 +69,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             dgvEvents.Columns["Description"].Width = 170;
         }
 
-        // Populates Category filter dropdown
+        /// <summary>
+        /// Populates the Category filter ComboBox dropdown with available municipal categories.
+        /// </summary>
         private void PopulateCategories()
         {
             cmbCategoryFilter.Items.Clear();
@@ -53,10 +82,15 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             cmbCategoryFilter.Items.Add("Health & Safety");
             cmbCategoryFilter.Items.Add("Sports & Youth");
 
+            // Default to "All Categories"
             cmbCategoryFilter.SelectedIndex = 0;
         }
 
-        // Applies search keyword, category, and date filters using SortedDictionary and Dictionary
+        /// <summary>
+        /// Applies search keyword, category, and date filters to the municipal event dataset.
+        /// Uses SortedDictionary and Dictionary for efficient querying.
+        /// Updates the recommendation engine based on user interaction patterns.
+        /// </summary>
         private void ApplyFilters()
         {
             string keyword = txtSearch.Text.Trim().ToLower();
@@ -64,12 +98,14 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             bool filterByDate = chkUseDateFilter.Checked;
             DateTime selectedDate = dtpDateFilter.Value.Date;
 
-            // Track user search history & category search count for Recommendation Engine
+            // --- 1. Track Search History & Category Frequency ---
+            // If the user typed a keyword, store it in the HashSet to track unique search terms
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 Program.UserSearchHistory.Add(keyword);
             }
 
+            // If a specific category was selected, increment its search frequency counter
             if (selectedCategory != "All Categories")
             {
                 if (Program.CategorySearchCount.ContainsKey(selectedCategory))
@@ -78,20 +114,22 @@ namespace ST10212542_AAPD7112_PART_2.Forms
                 }
             }
 
-            // Gather all events from primary SortedDictionary<DateTime, List<Event>>
+            // --- 2. Retrieve Events from Primary SortedDictionary<DateTime, List<Event>> ---
+            // SortedDictionary keeps all events ordered chronologically by date
             List<Event> allEvents = new List<Event>();
             foreach (var kvp in Program.EventSortedByDate)
             {
                 allEvents.AddRange(kvp.Value);
             }
 
-            // Filter by category using Category Dictionary if specific category selected
+            // --- 3. Filter by Category via Dictionary<string, List<Event>> ---
+            // If a specific category is chosen, use the category index for O(1) group retrieval
             if (selectedCategory != "All Categories" && Program.EventByCategory.ContainsKey(selectedCategory))
             {
                 allEvents = Program.EventByCategory[selectedCategory];
             }
 
-            // Filter by keyword if entered
+            // --- 4. Filter by Keyword (Matches Title, Description, or Location) ---
             if (!string.IsNullOrWhiteSpace(keyword))
             {
                 allEvents = allEvents.Where(ev =>
@@ -101,13 +139,13 @@ namespace ST10212542_AAPD7112_PART_2.Forms
                 ).ToList();
             }
 
-            // Filter by Date if checkbox is checked
+            // --- 5. Filter by Scheduled Date (if checkbox is enabled) ---
             if (filterByDate)
             {
                 allEvents = allEvents.Where(ev => ev.EventDate.Date == selectedDate).ToList();
             }
 
-            // Display filtered results in DataGridView and bind Event object to Row Tag
+            // --- 6. Populate DataGridView & Bind Event Object to Row Tag ---
             dgvEvents.Rows.Clear();
             foreach (var ev in allEvents)
             {
@@ -118,19 +156,25 @@ namespace ST10212542_AAPD7112_PART_2.Forms
                     ev.Location,
                     ev.Description
                 );
+                // Store the actual Event object reference in the row's Tag property for instant retrieval
                 dgvEvents.Rows[rowIndex].Tag = ev;
             }
 
-            // Update Recommendations based on user search patterns
+            // --- 7. Refresh Personalized Recommendations ---
             UpdateRecommendations();
         }
 
-        // Recommendation Engine: Displays targeted events based on user search frequency & history
+        /// <summary>
+        /// RECOMMENDATION ENGINE:
+        /// Analyzes the user's category search counts to determine their primary civic interest.
+        /// - If the user has searched a category, recommends upcoming notices in that category.
+        /// - Otherwise, defaults to recommending the top 3 upcoming chronological notices from SortedDictionary.
+        /// </summary>
         private void UpdateRecommendations()
         {
             lstRecommendations.Items.Clear();
 
-            // Find citizen's most frequently searched category
+            // Find the category with the highest search count
             string topCategory = Program.CategorySearchCount
                 .OrderByDescending(kvp => kvp.Value)
                 .FirstOrDefault().Key;
@@ -139,7 +183,7 @@ namespace ST10212542_AAPD7112_PART_2.Forms
 
             List<Event> recommendedEvents = new List<Event>();
 
-            // If user has actively searched a category, recommend events from that category
+            // Condition A: User has demonstrated an active interest in a category
             if (!string.IsNullOrEmpty(topCategory) && topCount > 0 && Program.EventByCategory.ContainsKey(topCategory))
             {
                 recommendedEvents = Program.EventByCategory[topCategory]
@@ -152,7 +196,7 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
             else
             {
-                // Default: Recommend top 3 upcoming events chronologically from SortedDictionary
+                // Condition B: Default recommendations - Top 3 upcoming events chronologically from SortedDictionary
                 foreach (var kvp in Program.EventSortedByDate)
                 {
                     foreach (var ev in kvp.Value)
@@ -169,9 +213,10 @@ namespace ST10212542_AAPD7112_PART_2.Forms
                 lblRecInfo.Text = "Upcoming Priority Municipal Announcements & Events:";
             }
 
+            // Cache the list of recommended events for double-click retrieval
             currentRecommendations = recommendedEvents;
 
-            // Add recommended events to ListBox
+            // Display recommended notices in the ListBox
             if (recommendedEvents.Count > 0)
             {
                 foreach (var ev in recommendedEvents)
@@ -185,7 +230,10 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
-        // Opens the full event details modal dialog
+        /// <summary>
+        /// Helper method to open the EventDetailsForm modal dialog for a given Event.
+        /// </summary>
+        /// <param name="ev">The target Event to display</param>
         private void ShowEventDetails(Event ev)
         {
             if (ev != null)
@@ -195,7 +243,10 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
-        // Double-click on any event row in the grid opens its full details
+        /// <summary>
+        /// Cell Double-Click Event on DataGridView:
+        /// When a resident double-clicks any row in the events table, opens its full details.
+        /// </summary>
         private void dgvEvents_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex >= 0 && e.RowIndex < dgvEvents.Rows.Count)
@@ -205,7 +256,10 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
-        // View Details button opens the currently selected event
+        /// <summary>
+        /// "View Event Details" Button Click:
+        /// Retrieves the currently selected or highlighted event in the grid and displays its full details.
+        /// </summary>
         private void btnViewDetails_Click(object sender, EventArgs e)
         {
             Event ev = null;
@@ -228,7 +282,10 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
-        // Double-click on a recommended event opens its full details
+        /// <summary>
+        /// ListBox Double-Click Event on Recommendations:
+        /// When a user double-clicks an item in the recommendation list, displays that event's full details.
+        /// </summary>
         private void lstRecommendations_DoubleClick(object sender, EventArgs e)
         {
             int index = lstRecommendations.SelectedIndex;
@@ -238,22 +295,34 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
+        /// <summary>
+        /// Search Button Click: Triggers filter application based on current keyword.
+        /// </summary>
         private void btnSearch_Click(object sender, EventArgs e)
         {
             ApplyFilters();
         }
 
+        /// <summary>
+        /// Category ComboBox Selection Changed: Automatically reapplies filters.
+        /// </summary>
         private void cmbCategoryFilter_SelectedIndexChanged(object sender, EventArgs e)
         {
             ApplyFilters();
         }
 
+        /// <summary>
+        /// Date Filter Checkbox Changed: Enables or disables the date picker control.
+        /// </summary>
         private void chkUseDateFilter_CheckedChanged(object sender, EventArgs e)
         {
             dtpDateFilter.Enabled = chkUseDateFilter.Checked;
             ApplyFilters();
         }
 
+        /// <summary>
+        /// Date Picker Value Changed: Re-filters events if date filtering is currently active.
+        /// </summary>
         private void dtpDateFilter_ValueChanged(object sender, EventArgs e)
         {
             if (chkUseDateFilter.Checked)
@@ -262,6 +331,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
+        /// <summary>
+        /// Clear Filters Button Click: Resets keyword, category, and date filters to defaults.
+        /// </summary>
         private void btnClearFilters_Click(object sender, EventArgs e)
         {
             txtSearch.Clear();
@@ -270,6 +342,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             ApplyFilters();
         }
 
+        /// <summary>
+        /// Updates the visibility and labels of admin controls based on login status.
+        /// </summary>
         private void UpdateAdminControls()
         {
             if (Program.IsAdminLoggedIn)
@@ -284,6 +359,11 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
+        /// <summary>
+        /// Admin Action Button Click:
+        /// - If not logged in: Opens AdminLoginForm modal to authenticate.
+        /// - If already logged in: Directly opens AddEventForm modal dialog.
+        /// </summary>
         private void btnAdminAction_Click(object sender, EventArgs e)
         {
             if (!Program.IsAdminLoggedIn)
@@ -301,6 +381,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
+        /// <summary>
+        /// Opens the AddEventForm modal and re-applies filters if a new event was added.
+        /// </summary>
         private void OpenAddEventDialog()
         {
             AddEventForm addForm = new AddEventForm();
@@ -311,6 +394,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             }
         }
 
+        /// <summary>
+        /// Admin Logout Link Click: Signs out administrator and returns to resident mode.
+        /// </summary>
         private void lnkAdminLogout_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             Program.IsAdminLoggedIn = false;
@@ -318,6 +404,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             MessageBox.Show("Administrator signed out. You are now viewing in resident mode.", "Logged Out", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
+        /// <summary>
+        /// Back Button Click: Closes the events view and reveals the MainMenuForm.
+        /// </summary>
         private void btnBack_Click(object sender, EventArgs e)
         {
             this.Close();
@@ -325,6 +414,9 @@ namespace ST10212542_AAPD7112_PART_2.Forms
             mainMenu.UpdateCounts();
         }
 
+        /// <summary>
+        /// Form Closing Event: Ensures MainMenuForm is shown if user clicks window 'X' button.
+        /// </summary>
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
