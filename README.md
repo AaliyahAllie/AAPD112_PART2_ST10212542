@@ -41,18 +41,13 @@ For Part 2, the application includes:
 1. Open Terminal, Command Prompt, or Git Bash.
 2. Clone the repository:
    ```bash
-   git clone https://github.com/<your-username>/AAPD7112_PART_2.git
+   git clone https://github.com/AaliyahAllie/AAPD112_PART2_ST10212542.git
    ```
 3. Navigate into the directory:
    ```bash
-   cd AAPD7112_PART_2
+   cd ST1021254_AAPD7112_PART_2
    ```
 
-### Option B: Open in Visual Studio 2022
-1. Launch **Visual Studio 2022**.
-2. Click **Open a project or solution**.
-3. Browse to: `C:\Users\Aaliyah\.gemini\antigravity\scratch\AAPD7112_PART 2`
-4. Select `AAPD7112_PART 2.csproj` and click **Open**.
 
 ---
 
@@ -60,16 +55,6 @@ For Part 2, the application includes:
 In Visual Studio:
 - Select **Build > Build Solution** (or press `Ctrl + Shift + B`).
 
-Via Command Line:
-```powershell
-dotnet build "AAPD7112_PART 2.csproj" -c Release
-```
-
----
-
-## 7. How to Run the Application
-Run the compiled executable located at:
-`C:\Users\Aaliyah\.gemini\antigravity\scratch\AAPD7112_PART 2\bin\Release\AAPD7112_PART 2.exe`
 
 ---
 
@@ -113,22 +98,3 @@ Run the compiled executable located at:
 - The app records search keywords in a `HashSet` and tracks search frequencies per category using a `Dictionary`.
 - The recommendation algorithm identifies the user's most searched category and populates personalized event recommendations.
 
----
-
-## 11. Rubric Compliance Checklist
-
-| Requirement | Implemented? | Source Code File |
-| :--- | :---: | :--- |
-| **Main Menu Startup** | Yes | `Forms/MainMenuForm.cs` |
-| **Report Issues (Part 1 Enabled)** | Yes | `Forms/ReportIssuesForm.cs` |
-| **Local Events (Part 2 Enabled)** | Yes | `Forms/LocalEventsForm.cs` |
-| **Service Status (Part 3 Disabled)** | Yes | `Forms/MainMenuForm.Designer.cs` |
-| **Event Model** | Yes | `Event.cs` |
-| **Data Structures (SortedDictionary & Dictionary)** | Yes | `Program.cs` |
-| **Search Functionality** | Yes | `Forms/LocalEventsForm.cs` |
-| **Category & Date Filtering** | Yes | `Forms/LocalEventsForm.cs` |
-| **Recommendation Engine** | Yes | `Forms/LocalEventsForm.cs` |
-| **Event Detailed View (Full Notice Modal)** | Yes | `Forms/EventDetailsForm.cs` |
-| **Admin Authentication (Anti-Spam)** | Yes | `Forms/AdminLoginForm.cs`, `Forms/AddEventForm.cs` |
-| **Dynamic Event Creation** | Yes | `Forms/AddEventForm.cs` |
-| **README Documentation** | Yes | `README.md` |
