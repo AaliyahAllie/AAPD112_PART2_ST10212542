@@ -1,52 +1,84 @@
-﻿using System;
+﻿
+using ST10212542_AAPD7112_PART_2;
+using ST10212542_AAPD7112_PART_2.Forms;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
-using ST10212542_AAPD7112_PART_2.Forms;
 
 namespace ST10212542_AAPD7112_PART_2
 {
+    /// <summary>
+    /// Application entry point and central in-memory data store.
+    /// Manages the collections for reported issues (Part 1) and local municipal events (Part 2),
+    /// including advanced data structures: SortedDictionary, Dictionary, and HashSet.
+    /// </summary>
     static class Program
     {
-        // Part 1: Global List<Issue> for storing issue reports
+        // =========================================================================
+        // PART 1 DATA STRUCTURES:
+        // =========================================================================
+
+        // In-memory list storing all issues submitted by citizens in Part 1
         public static List<Issue> IssueList = new List<Issue>();
+
+        // Running counter used to generate sequential reference IDs (MS-0001, MS-0002, etc.)
         public static int IssueCounter = 1;
 
-        // Part 2 Data Structures:
-        // 1. SortedDictionary<DateTime, List<Event>> - Chronologically sorted events by date
+        // =========================================================================
+        // PART 2 ADVANCED DATA STRUCTURES:
+        // =========================================================================
+
+        // 1. SortedDictionary<DateTime, List<Event>>
+        // Chronological event store sorted automatically by Date keys.
+        // Uses a red-black binary search tree internally to maintain keys in sorted order.
         public static SortedDictionary<DateTime, List<Event>> EventSortedByDate = new SortedDictionary<DateTime, List<Event>>();
 
-        // 2. Dictionary<string, List<Event>> - Fast O(1) category lookup index
+        // 2. Dictionary<string, List<Event>>
+        // Secondary index keyed by Category string.
+        // Provides O(1) average constant-time lookup when a citizen filters by a specific category.
         public static Dictionary<string, List<Event>> EventByCategory = new Dictionary<string, List<Event>>(StringComparer.OrdinalIgnoreCase);
 
-        // 3. User Search Preference Tracker (Dictionary<string, int> & HashSet<string>)
+        // 3. User Search Preference Tracker for Recommendation Engine:
+        // - CategorySearchCount: Counts how many times the user searched or filtered each category.
+        // - UserSearchHistory: Set storing unique search keywords queried during this session.
         public static Dictionary<string, int> CategorySearchCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         public static HashSet<string> UserSearchHistory = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Municipal Admin authentication state (prevents false event creation by residents)
+        // 4. Municipal Administrator Authentication State
+        // Tracks whether an authorized municipal official is currently logged in.
+        // Protects the announcements feed by ensuring only staff can publish verified notices.
         public static bool IsAdminLoggedIn = false;
 
         /// <summary>
-        /// Main entry point of the application.
+        /// Main application entry point method.
+        /// Configures visual styles, populates sample data, and opens the main menu.
         /// </summary>
         [STAThread]
         static void Main()
         {
+            // Enable standard Windows XP/Vista/7/10/11 visual styles for controls
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // Populate sample municipal events & initialize data structures
+            // Populate sample municipal events into both data structures at startup
             InitializeSampleEvents();
 
+            // Launch the main menu form directly (satisfying startup criteria without mandatory login)
             Application.Run(new MainMenuForm());
         }
 
         /// <summary>
-        /// Helper method to add an event into all data structures (SortedDictionary & Dictionary)
+        /// Adds a single Event object into both primary data structures:
+        /// 1) SortedDictionary (indexed by date)
+        /// 2) Dictionary (indexed by category)
+        /// This keeps both data stores synchronized.
         /// </summary>
+        /// <param name="ev">The Event object to insert</param>
         public static void AddEventToDataStructures(Event ev)
         {
-            // 1. Add to SortedDictionary by Date (truncating time to Date only for clean sorting)
+            // --- 1. Insert into SortedDictionary<DateTime, List<Event>> ---
+            // Truncate the time component to ensure all events on the same calendar day share the same key
             DateTime dateKey = ev.EventDate.Date;
             if (!EventSortedByDate.ContainsKey(dateKey))
             {
@@ -54,7 +86,8 @@ namespace ST10212542_AAPD7112_PART_2
             }
             EventSortedByDate[dateKey].Add(ev);
 
-            // 2. Add to Dictionary by Category
+            // --- 2. Insert into Dictionary<string, List<Event>> ---
+            // Group under category key for instant O(1) filtering
             if (!EventByCategory.ContainsKey(ev.Category))
             {
                 EventByCategory[ev.Category] = new List<Event>();
@@ -63,12 +96,14 @@ namespace ST10212542_AAPD7112_PART_2
         }
 
         /// <summary>
-        /// Pre-populates realistic South African municipal events & public announcements
+        /// Pre-populates realistic South African municipal events and announcements.
+        /// Demonstrates chronological ordering, category indexing, and search capabilities.
         /// </summary>
         private static void InitializeSampleEvents()
         {
             DateTime today = DateTime.Today;
 
+            // Sample data reflecting realistic South African municipal operations
             List<Event> sampleEvents = new List<Event>
             {
                 new Event(1, "Johannesburg Water Planned Maintenance", "Water Notices", today.AddDays(2),
@@ -102,12 +137,13 @@ namespace ST10212542_AAPD7112_PART_2
                     "Tshwane Sports Complex", "Open track and field sports day for all local community schools and athletic clubs.")
             };
 
+            // Add each sample event to the primary data structures
             foreach (var ev in sampleEvents)
             {
                 AddEventToDataStructures(ev);
             }
 
-            // Initialize category search counts
+            // Initialize all category search counters to 0
             string[] categories = { "Water Notices", "Power Maintenance", "Community Meetings", "Health & Safety", "Sports & Youth" };
             foreach (var cat in categories)
             {
